@@ -1,0 +1,40 @@
+name: Main PR policy
+
+on:
+  pull_request_target:
+    types: [opened, reopened, edited, synchronize]
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  main-pr-policy:
+    name: main-pr-policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Allow only the owner from dev
+        env:
+          ACTOR: ${{ github.event.pull_request.user.login }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$ACTOR" = "tony-kobs" ] && [ "$HEAD_REF" = "dev" ] && [ "$HEAD_REPO" = "$BASE_REPO" ]; then
+            echo "Pull request to main is from tony-kobs and the dev branch."
+            exit 0
+          fi
+
+          echo "Pull requests to main must be opened by tony-kobs from the dev branch."
+          gh pr close "$PR_NUMBER" --repo "$BASE_REPO" --comment "$(cat <<'EOF'
+          Цей pull request закрито автоматично.
+
+          У `main` pull request може відкрити лише `tony-kobs`, і лише з гілки `dev` цього репозиторію.
+          Зміни команди приймаються в `dev`.
+          EOF
+          )"
+          exit 1
