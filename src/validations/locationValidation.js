@@ -7,9 +7,9 @@ export const locationQuerySchema = {
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(10),
     region: objectId,
-    type: objectId,
+    type: Joi.array().items(objectId).single(),
     search: Joi.string().max(96).allow(''),
-    sort: Joi.string().valid('rating', 'new').default('rating'),
+    sort: Joi.string().valid('popular', 'rating', 'new').default('rating'),
   }),
 };
 
