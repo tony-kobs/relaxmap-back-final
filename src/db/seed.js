@@ -1,5 +1,7 @@
 import 'dotenv/config';
-import bcrypt from 'bcrypt';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import mongoose from 'mongoose';
 import { connectMongoDB } from './connectMongoDB.js';
 import { Category } from '../models/category.js';
@@ -7,86 +9,117 @@ import { Feedback } from '../models/feedback.js';
 import { Location } from '../models/location.js';
 import { User } from '../models/user.js';
 
-const regions = [
-  'Київщина',
-  'Львівщина',
-  'Одещина',
-  'Закарпаття',
-  'Івано-Франківщина',
-  'Черкащина',
-];
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  'data',
+);
 
-const types = ['Озеро', 'Гора', 'Водоспад', 'Ліс', 'Пляж', 'Каньйон'];
+const load = (fileName) =>
+  JSON.parse(readFileSync(path.join(root, fileName), 'utf8'));
 
-const image = 'https://res.cloudinary.com/demo/image/upload/sample.jpg';
+const oid = (value) => value?.$oid ?? String(value);
+
+const users = load('relax_map_db.users.json');
+const regions = load('relax_map_db.regions.json');
+const types = load('relax_map_db.location_types.json');
+const locations = load('relax_map_db.locations.json');
+const feedbacks = load('relax_map_db.feedbacks.json');
 
 await connectMongoDB();
 
-const regionDocs = [];
-for (const name of regions) {
-  regionDocs.push(
-    await Category.findOneAndUpdate(
-      { name, kind: 'region' },
-      { name, kind: 'region' },
-      { upsert: true, new: true },
-    ),
+for (const user of users) {
+  await User.findOneAndUpdate(
+    { _id: oid(user._id) },
+    { name: user.name, avatar: user.avatarUrl },
+    { upsert: true },
   );
 }
 
-const typeDocs = [];
-for (const name of types) {
-  typeDocs.push(
-    await Category.findOneAndUpdate(
-      { name, kind: 'type' },
-      { name, kind: 'type' },
-      { upsert: true, new: true },
-    ),
+for (const region of regions) {
+  await Category.findOneAndUpdate(
+    { _id: oid(region._id) },
+    { name: region.region, kind: 'region' },
+    { upsert: true },
   );
 }
 
-const password = await bcrypt.hash('DemoPass1', 10);
-const owner = await User.findOneAndUpdate(
-  { email: 'demo@relaxmap.local' },
-  { name: 'Олена Мандрівна', email: 'demo@relaxmap.local', password },
-  { upsert: true, new: true },
+for (const type of types) {
+  await Category.findOneAndUpdate(
+    { _id: oid(type._id) },
+    { name: type.type, kind: 'type' },
+    { upsert: true },
+  );
+}
+
+const regionIdBySlug = new Map(
+  regions.map((region) => [region.slug, oid(region._id)]),
+);
+const typeIdBySlug = new Map(
+  types.map((type) => [type.slug, oid(type._id)]),
 );
 
-const places = [
-  ['Синевир', 'Озеро в серці Карпат, до якого ведуть марковані стежки.', 0, 0],
-  ['Шипіт', 'Водоспад після дощів стає гучним і широким.', 1, 2],
-  ['Буцький каньйон', 'Скелі і поріг річки, зручне місце на півдня.', 5, 5],
-  ['Трахтемирів', 'Пагорби над Дніпром з видами на заплаву.', 0, 3],
-];
+const locationByFeedbackId = new Map();
 
-for (const [name, description, regionIndex, typeIndex] of places) {
-  const location = await Location.findOneAndUpdate(
-    { name },
+for (const location of locations) {
+  const regionId = regionIdBySlug.get(location.region);
+  const typeId = typeIdBySlug.get(location.locationType);
+
+  if (!regionId || !typeId) {
+    throw new Error(`Немає категорії для локації ${location.name}`);
+  }
+
+  const feedbackIds = (location.feedbacksId ?? []).map(oid);
+
+  await Location.findOneAndUpdate(
+    { _id: oid(location._id) },
     {
-      name,
-      description: `${description} Тут тихо вранці і людно у вихідні, тож приїжджай рано.`,
-      type: typeDocs[typeIndex]._id,
-      region: regionDocs[regionIndex]._id,
-      images: [image],
-      owner: owner._id,
-      rating: 5,
-      reviewsCount: 1,
+      name: location.name,
+      description: location.description,
+      images: [location.image],
+      type: typeId,
+      region: regionId,
+      owner: oid(location.ownerId),
+      rating: location.rate,
+      reviewsCount: feedbackIds.length,
     },
-    { upsert: true, new: true },
+    { upsert: true },
   );
 
+  for (const feedbackId of feedbackIds) {
+    locationByFeedbackId.set(feedbackId, {
+      locationId: oid(location._id),
+      owner: oid(location.ownerId),
+    });
+  }
+}
+
+for (const feedback of feedbacks) {
+  const link = locationByFeedbackId.get(oid(feedback._id));
+
+  if (!link) {
+    throw new Error(`Відгук ${oid(feedback._id)} не прив'язаний до локації`);
+  }
+
   await Feedback.findOneAndUpdate(
-    { locationId: location._id, userName: 'Ігор' },
+    { _id: oid(feedback._id) },
     {
-      locationId: location._id,
-      owner: owner._id,
-      userName: 'Ігор',
-      rate: 5,
-      description: 'Варто їхати заради тиші і виду.',
+      locationId: link.locationId,
+      owner: link.owner,
+      userName: feedback.userName,
+      rate: feedback.rate,
+      description: feedback.description,
       status: 'approved',
     },
-    { upsert: true, new: true },
+    { upsert: true },
   );
 }
 
-console.log('Seed completed');
+console.log('Seed completed', {
+  users: users.length,
+  regions: regions.length,
+  types: types.length,
+  locations: locations.length,
+  feedbacks: feedbacks.length,
+});
+
 await mongoose.disconnect();
