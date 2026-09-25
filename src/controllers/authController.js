@@ -1,13 +1,34 @@
+import bcrypt from 'bcrypt';
 import { isValidObjectId } from 'mongoose';
 import { Session } from '../models/session.js';
+import { User } from '../models/user.js';
 import {
   clearSessionCookies,
+  createSession,
   refreshSession,
   setSessionCookies,
 } from '../services/auth.js';
 import { notImplemented } from '../utils/notImplemented.js';
 
-export const registerUser = notImplemented;
+const SALT_ROUNDS = 10;
+
+export const registerUser = async (req, res) => {
+  const { name, email, password } = req.body;
+
+  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+  const user = await User.create({
+    name,
+    email,
+    password: hashedPassword,
+  });
+
+  const session = await createSession(user._id);
+  setSessionCookies(res, session);
+
+  res.status(201).json(user);
+};
+
 export const loginUser = notImplemented;
 
 export const logoutUser = async (req, res) => {
