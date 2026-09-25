@@ -11,8 +11,13 @@ const baseCookieOptions = {
   path: '/',
 };
 
-export const createSession = async () => {
-  throw new Error('Not implemented');
+export const createSession = async (userId) => {
+  const tokens = generateTokens(userId);
+
+  return Session.create({
+    userId,
+    ...tokens,
+  });
 };
 
 export const setSessionCookies = (res, session) => {
