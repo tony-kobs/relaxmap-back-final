@@ -3,7 +3,7 @@ import createHttpError from 'http-errors';
 
 // ВИКОРИСТОВУЄМО ЧИСТИЙ ІМПОРТ (Bare Import):
 // Це реєструє схеми іншого розробника в пам'яті Mongoose, та виправляє помилку 500 у Postman,
-// і при цьому лінтер ESLint НЕ видасть помилку про невикористані змінні!
+// і при цьому лінтер ESLint НЕ видасть помилку про невикористані змінні
 import '../models/location.js';
 import '../models/user.js';
 
@@ -14,7 +14,7 @@ const FEEDBACK_CONFIG = {
   HOMEPAGE_LIMIT: 6, // Суворе обмеження кількості відгуків для слайдера на Головній сторінці
   DEFAULT_STATUS: 'approved', // Відображати лише ті відгуки, які були успішно перевірені та схвалені модератором
   SORT_ORDER: { createdAt: -1 }, // Сортування списку: спочатку показувати найновіші додані відгуки
-  PARSE_INT_RADIX: 10, // Змінна для функції parseInt(), яка вказує комп'ютеру, що ми виводимо значення у десятковій системі числення (основа 10)
+  PARSE_INT_RADIX: 10, // Змінна для функції parseInt(), для виведення значень у десятковій системі числення (основа 10)
 };
 
 /**
@@ -30,10 +30,10 @@ export const getFeedbacks = async (req, res, next) => {
 
     // КРОК 1: Обчислюємо ліміт (кількість відгуків для поточного запиту)
     // Якщо у параметрах запиту передано ідентифікатор місця відпочинку (locationId):
-    // Ми трансформуємо змінну limit у число за допомогою константи FEEDBACK_CONFIG.PARSE_INT_RADIX.
-    // Якщо значення limit відсутнє, підставляємо константу FEEDBACK_CONFIG.DEFAULT_LIMIT_LOCATION.
+    // Ми трансформуємо змінну limit у число за допомогою константи PARSE_INT_RADIX.
+    // Якщо значення limit відсутнє, підставляємо константу DEFAULT_LIMIT_LOCATION.
     // Якщо ідентифікатора місця відпочинку немає (запит для Головної сторінки):
-    // Встановлюємо фіксоване обмеження, яке зберігає константа FEEDBACK_CONFIG.HOMEPAGE_LIMIT.
+    // Встановлюємо фіксоване обмеження, яке зберігає константа HOMEPAGE_LIMIT.
     const currentLimit = locationId
       ? parseInt(
           limit || FEEDBACK_CONFIG.DEFAULT_LIMIT_LOCATION,
@@ -42,15 +42,14 @@ export const getFeedbacks = async (req, res, next) => {
       : FEEDBACK_CONFIG.HOMEPAGE_LIMIT;
 
     // КРОК 2: Визначаємо поточну сторінку для відображення списку відгуків
-    // Трансформуємо змінну page у число за допомогою константи FEEDBACK_CONFIG.PARSE_INT_RADIX.
-    // Якщо значення page не передано з фронтенду, використовуємо значення константи FEEDBACK_CONFIG.DEFAULT_PAGE.
+    // Трансформуємо змінну page у число за допомогою константи PARSE_INT_RADIX.
+    // Якщо значення page не передано з фронтенду, використовуємо значення константи DEFAULT_PAGE.
     const currentPage = parseInt(
       page || FEEDBACK_CONFIG.DEFAULT_PAGE,
       FEEDBACK_CONFIG.PARSE_INT_RADIX,
     );
 
     // КРОК 3: Математично розраховуємо кількість елементів, які база даних має пропустити
-    // Від значення змінної currentPage віднімаємо одиницю, а отриманий результат множимо на значення змінної currentLimit
     const skip = (currentPage - 1) * currentLimit;
 
     // КРОК 4: Додаткове динамічне налаштування фільтрації пошуку
@@ -59,26 +58,26 @@ export const getFeedbacks = async (req, res, next) => {
       filter.locationId = locationId;
     }
 
-    // Виконуємо запити до бази даних паралельно. Назви полів підтягування (locationId, owner) беремо з власної моделі Feedback
+    // Виконуємо запити до бази даних паралельно. Назви полів (locationId, owner) беремо з власної моделі Feedback
     const [feedbacks, total] = await Promise.all([
       Feedback.find(filter)
         .sort(FEEDBACK_CONFIG.SORT_ORDER)
         .skip(skip)
         .limit(currentLimit)
-        // Вказуємо назву моделі явно через об'єкт конфігурації
+        // Вказуємо назву моделі явно через об'єкт конфігурації для populate
         .populate({
           path: 'locationId',
-          model: 'Location', // Передаємо назву моделі як рядок. Mongoose підтягне її без прямого імпорту файлу!
+          model: 'Location', // Передаємо назву моделі як рядок. Mongoose підтягне її без прямого імпорту файлу
           select: 'title type region', // Поля, які необхідно повернути фронтенду
         })
         .populate('owner', 'name avatar'),
       Feedback.countDocuments(filter),
     ]);
 
-    // Розраховуємо загальну кількість сторінок, ділячи значення змінної total на значення змінної currentLimit
+    // Розраховуємо загальну кількість сторінок
     const totalPages = Math.ceil(total / currentLimit);
 
-    // Форма відповіді суворо відповідає Технічному завданню: { data, page, limit, total, totalPages }
+    // Форма відповіді: { data, page, limit, total, totalPages }
     res.status(200).json({
       status: 'success',
       code: 200,
@@ -109,7 +108,7 @@ export const createFeedback = async (req, res, next) => {
       owner: ownerId,
     });
 
-    // Повертаємо успішну відповідь зі статусом 201 згідно з вимогами Технічного завдання
+    // Повертаємо відповідь зі статусом 201 для успішного виконання запиту
     res.status(201).json({
       status: 'success',
       code: 201,
