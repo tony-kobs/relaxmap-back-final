@@ -5,10 +5,6 @@ const baseCookieOptions = {
   path: '/',
 };
 
-export const createSession = async () => {
-  throw new Error('Not implemented');
-};
-
 export const setSessionCookies = (res, session) => {
   res.cookie('sessionId', session._id.toString(), {
     ...baseCookieOptions,
@@ -28,8 +24,4 @@ export const clearSessionCookies = (res) => {
   res.clearCookie('sessionId', baseCookieOptions);
   res.clearCookie('accessToken', baseCookieOptions);
   res.clearCookie('refreshToken', baseCookieOptions);
-};
-
-export const refreshSession = async () => {
-  throw new Error('Not implemented');
 };
