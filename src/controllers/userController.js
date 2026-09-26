@@ -74,3 +74,27 @@ export const getUserLocations = async (req, res, next) => {
         next(error);
     }
 };
+export const updateUserAvatar = async (req, res, next) => {
+    try {
+       
+        const avatarUrl = req.file ? req.file.path : req.body.avatar;
+
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user._id,
+            { avatar: avatarUrl },
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        if (!updatedUser) {
+            throw createHttpError(404, 'User not found');
+        }
+
+        res.status(200).json({
+            status: 200,
+            message: 'Successfully updated user avatar',
+            data: updatedUser,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
