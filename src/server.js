@@ -53,7 +53,7 @@ app.use(
 
 app.use(healthRoutes);
 app.use(authRoutes);
-app.use(userRoutes);
+app.use('/users', userRoutes);
 app.use(locationRoutes);
 app.use(categoryRoutes);
 app.use(feedbackRoutes);

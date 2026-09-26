@@ -16,15 +16,15 @@ import {
 
 const router = Router();
 
-router.get('/users/me', authenticate, getCurrentUser);
-router.patch('/users/me', authenticate, updateCurrentUser);
+router.get('/me', authenticate, getCurrentUser);
+router.patch('/me', authenticate, updateCurrentUser);
 router.patch(
-  '/users/me/avatar',
+  '/me/avatar',
   authenticate,
   upload.single('avatar'),
   updateUserAvatar,
 );
-router.get('/users/:userId/locations', celebrate(userLocationsQuerySchema), getUserLocations);
-router.get('/users/:userId', celebrate(userIdSchema), getUserById);
+router.get('/:userId/locations', celebrate(userLocationsQuerySchema), getUserLocations);
+router.get('/:userId', celebrate(userIdSchema), getUserById);
 
 export default router;
