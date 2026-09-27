@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import createHttpError from 'http-errors';
 import { isValidObjectId } from 'mongoose';
 import { Session } from '../models/session.js';
 import { User } from '../models/user.js';
@@ -29,11 +30,28 @@ export const registerUser = async (req, res) => {
   res.status(201).json(user);
 };
 
-export const loginUser = notImplemented;
+export const loginUser = async (req, res) => {
+  const { email, password } = req.body;
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw createHttpError(401, 'Невірний email або пароль');
+  }
+
+  const isPasswordEqual = await bcrypt.compare(password, user.password);
+  if (!isPasswordEqual) {
+    throw createHttpError(401, 'Невірний email або пароль');
+  }
+
+  const session = await createSession(user._id);
+  setSessionCookies(res, session);
+
+  res.status(200).json(user);
+};
 
 export const logoutUser = async (req, res) => {
     const { sessionId } = req.cookies ?? {};
-    
+
     if (sessionId && isValidObjectId(sessionId)) {
         await Session.findByIdAndDelete(sessionId);
     }
