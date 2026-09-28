@@ -4,7 +4,20 @@ import { notImplemented } from '../utils/notImplemented.js';
 import { saveFileToCloudinary } from '../utils/saveFileToCloudinary.js';
 
 export const getLocations = notImplemented;
-export const getLocationById = notImplemented;
+export const getLocationById = async (req, res) => {
+  const { locationId } = req.params;
+
+  const location = await Location.findById(locationId)
+    .populate('type', 'name')
+    .populate('region', 'name')
+    .populate('owner', 'name avatar');
+
+  if (!location) {
+    throw createHttpError(404, 'Location not found');
+  }
+
+  res.status(200).json(location);
+};
 export const createLocation = async (req, res) => {
   const { name, type, region, description } = req.body;
 
