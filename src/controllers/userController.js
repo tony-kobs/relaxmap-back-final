@@ -1,4 +1,4 @@
-// src/controllers/userController.js
+
 import createHttpError from 'http-errors';
 import { notImplemented } from '../utils/notImplemented.js';
 import { User } from '../models/user.js';
