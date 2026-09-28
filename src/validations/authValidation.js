@@ -9,7 +9,19 @@ export const registerUserSchema = {
 };
 
 export const loginUserSchema = {
-  [Segments.BODY]: Joi.object({}),
+  [Segments.BODY]: Joi.object({
+    email: Joi.string().trim().lowercase().email().required().messages({
+      'string.base': 'Email має бути рядком',
+      'string.email': 'Введіть коректний email',
+      'string.empty': 'Email не може бути порожнім',
+      'any.required': 'Email є обов\'язковим полем',
+    }),
+    password: Joi.string().required().messages({
+      'string.base': 'Пароль має бути рядком',
+      'string.empty': 'Пароль не може бути порожнім',
+      'any.required': 'Пароль є обов\'язковим полем',
+    }),
+  }),
 };
 
 export const requestResetEmailSchema = {
