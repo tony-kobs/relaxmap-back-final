@@ -1,12 +1,11 @@
-import { notImplemented } from '../utils/notImplemented.js';
-import createError from 'http-errors';
+import createHttpError from 'http-errors';
 import { Location } from '../models/location.js';
+import { notImplemented } from '../utils/notImplemented.js';
 
 export const getLocations = notImplemented;
-
 export const getLocationById = async (req, res, next) => {
   try {
-    
+
     const { locationId } = req.params;
 
     const location = await Location.findById(locationId)
@@ -18,7 +17,7 @@ export const getLocationById = async (req, res, next) => {
       });
 
     if (!location) {
-      throw createError(404, 'Місце відпочинку з таким ID не знайдено.');
+      throw createHttpError(404, 'Місце відпочинку з таким ID не знайдено.');
     }
 
     res.status(200).json({

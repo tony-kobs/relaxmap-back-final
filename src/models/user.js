@@ -2,9 +2,16 @@ import { model, Schema } from 'mongoose';
 
 const userSchema = new Schema(
   {
-    name: { type: String, trim: true },
-    email: { type: String, trim: true },
-    password: { type: String },
+    name: { type: String, trim: true, required: true, minlength: 2, maxlength: 32 },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      required: true,
+      unique: true,
+      maxlength: 64,
+    },
+    password: { type: String, required: true },
     avatar: {
       type: String,
       required: false,
