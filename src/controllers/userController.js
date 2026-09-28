@@ -48,4 +48,3 @@ export const getUserLocations = async (req, res) => {
     totalPages: Math.ceil(total / limit),
   });
 };
-
