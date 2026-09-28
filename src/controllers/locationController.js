@@ -5,7 +5,6 @@ import { notImplemented } from '../utils/notImplemented.js';
 export const getLocations = notImplemented;
 export const getLocationById = async (req, res, next) => {
   try {
-
     const { locationId } = req.params;
 
     const location = await Location.findById(locationId)
