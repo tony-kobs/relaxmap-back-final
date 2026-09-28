@@ -6,7 +6,9 @@ import cookieParser from 'cookie-parser';
 vi.mock('../src/models/feedback.js', () => ({
   Feedback: { create: vi.fn() },
 }));
-vi.mock('../src/models/location.js', () => ({}));
+vi.mock('../src/models/location.js', () => ({
+  Location: { findById: vi.fn() },
+}));
 vi.mock('../src/models/category.js', () => ({}));
 vi.mock('../src/models/session.js', () => ({
   Session: { findOne: vi.fn() },
@@ -16,6 +18,7 @@ vi.mock('../src/models/user.js', () => ({
 }));
 
 import { Feedback } from '../src/models/feedback.js';
+import { Location } from '../src/models/location.js';
 import { Session } from '../src/models/session.js';
 import { User } from '../src/models/user.js';
 import feedbackRoutes from '../src/routes/feedbackRoutes.js';
@@ -51,6 +54,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   Session.findOne.mockResolvedValue(validSession);
   User.findById.mockResolvedValue({ _id: userId, name: 'Relax Tester' });
+  Location.findById.mockResolvedValue({ _id: validBody.locationId, name: 'Relax Spot' });
 });
 
 describe('POST /feedbacks (createFeedback)', () => {
@@ -156,6 +160,22 @@ describe('POST /feedbacks (createFeedback)', () => {
   });
 
   describe('errors', () => {
+    it('returns 404 when location is not found', async () => {
+      Location.findById.mockResolvedValue(null);
+
+      const res = await request(app)
+        .post('/feedbacks')
+        .set('Cookie', [
+          `sessionId=${validSession._id}`,
+          `accessToken=${validSession.accessToken}`,
+        ])
+        .send(validBody);
+
+      expect(res.status).toBe(404);
+      expect(res.body).toEqual({ message: 'Location not found' });
+      expect(Feedback.create).not.toHaveBeenCalled();
+    });
+
     it('returns 500 when Feedback.create fails', async () => {
       Feedback.create.mockRejectedValue(new Error('db down'));
 
