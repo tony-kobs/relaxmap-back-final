@@ -1,6 +1,8 @@
 import { isCelebrateError } from 'celebrate';
 import { HttpError } from 'http-errors';
 import mongoose from 'mongoose';
+import multer from 'multer';
+import { IMAGE_TYPE_ERROR } from './multer.js';
 
 const validationMessage = (err) => {
   for (const joiError of err.details.values()) {
@@ -48,6 +50,22 @@ export const errorHandler = (err, req, res, next) => {
     return res.status(400).json({
       message: 'Invalid id',
     });
+  }
+
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'Image must be 1 MB or smaller' });
+    }
+
+    if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({ message: 'No more than 8 images are allowed' });
+    }
+
+    return res.status(400).json({ message: err.message });
+  }
+
+  if (err?.message === IMAGE_TYPE_ERROR) {
+    return res.status(400).json({ message: IMAGE_TYPE_ERROR });
   }
 
   const isProd = process.env.NODE_ENV === 'production';
