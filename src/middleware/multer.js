@@ -2,12 +2,7 @@ import multer from 'multer';
 
 const storage = multer.memoryStorage();
 
-export const upload = multer({
-  storage,
-  limits: {
-    fileSize: 1024 * 1024,
-  },
-});
+export const IMAGE_TYPE_ERROR = 'Only jpg and png images are allowed';
 
 const imageFileFilter = (req, file, callback) => {
   if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
@@ -15,8 +10,16 @@ const imageFileFilter = (req, file, callback) => {
     return;
   }
 
-  callback(new Error('Only jpg and png images are allowed'));
+  callback(new Error(IMAGE_TYPE_ERROR));
 };
+
+export const upload = multer({
+  storage,
+  limits: {
+    fileSize: 1024 * 1024,
+  },
+  fileFilter: imageFileFilter,
+});
 
 export const uploadLocationImages = multer({
   storage,

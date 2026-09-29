@@ -9,7 +9,7 @@
     "start": "node src/server.js",
     "seed": "node src/db/seed.js",
     "lint": "eslint src",
-    "test": "vitest run"
+    "test": "node ./scripts/test.mjs"
   },
   "keywords": [
     "express",
