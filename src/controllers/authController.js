@@ -1,6 +1,12 @@
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcrypt';
 import createHttpError from 'http-errors';
+import handlebars from 'handlebars';
+import jwt from 'jsonwebtoken';
 import { isValidObjectId } from 'mongoose';
+import { FIFTEEN_MINUTES } from '../constants/time.js';
 import { Session } from '../models/session.js';
 import { User } from '../models/user.js';
 import {
@@ -9,7 +15,23 @@ import {
   refreshSession,
   setSessionCookies,
 } from '../services/auth.js';
-import { notImplemented } from '../utils/notImplemented.js';
+import { sendEmail } from '../utils/sendMail.js';
+
+const resetTemplatePath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../templates/reset-password-email.html',
+);
+
+let resetTemplate;
+
+const renderResetEmail = async ({ name, link }) => {
+  if (!resetTemplate) {
+    const source = await readFile(resetTemplatePath, 'utf8');
+    resetTemplate = handlebars.compile(source);
+  }
+
+  return resetTemplate({ name, link });
+};
 
 const SALT_ROUNDS = 10;
 
@@ -92,5 +114,68 @@ export const getSession = async (req, res) => {
 
   res.status(200).json({ success: false });
 };
-export const requestResetEmail = notImplemented;
-export const resetPassword = notImplemented;
+
+export const requestResetEmail = async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw createHttpError(404, 'User not found');
+  }
+
+  if (!process.env.FRONTEND_URL) {
+    throw createHttpError(500, 'FRONTEND_URL is not configured');
+  }
+
+  const token = jwt.sign(
+    { purpose: 'password-reset', email: user.email },
+    process.env.JWT_ACCESS_SECRET,
+    {
+      expiresIn: FIFTEEN_MINUTES / 1000,
+      subject: user._id.toString(),
+    },
+  );
+
+  const link = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+  const html = await renderResetEmail({ name: user.name, link });
+
+  await sendEmail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: user.email,
+    subject: 'Reset your password',
+    html,
+  });
+
+  res.status(200).json({ message: 'Reset password email has been sent' });
+};
+
+export const resetPassword = async (req, res) => {
+  const { token, password } = req.body;
+  let payload;
+
+  try {
+    payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError) {
+      throw createHttpError(401, 'Token is expired or invalid');
+    }
+
+    throw error;
+  }
+
+  if (payload.purpose !== 'password-reset' || !payload.sub || !payload.email) {
+    throw createHttpError(401, 'Token is expired or invalid');
+  }
+
+  const user = await User.findOne({ _id: payload.sub, email: payload.email });
+
+  if (!user) {
+    throw createHttpError(404, 'User not found');
+  }
+
+  user.password = await bcrypt.hash(password, SALT_ROUNDS);
+  await user.save();
+  await Session.deleteMany({ userId: user._id });
+
+  res.status(200).json({ message: 'Password has been reset' });
+};
