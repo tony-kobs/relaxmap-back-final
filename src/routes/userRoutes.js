@@ -18,7 +18,13 @@ import { updateMeSchema } from '../validations/usersValidation.js';
 const router = Router();
 
 router.get('/users/me', authenticate, getCurrentUser);
-router.patch('/users/me', authenticate, celebrate(updateMeSchema), updateCurrentUser);
+router.patch(
+  '/users/me',
+  authenticate,
+  upload.single('avatar'),
+  celebrate(updateMeSchema),
+  updateCurrentUser,
+);
 router.patch(
   '/users/me/avatar',
   authenticate,

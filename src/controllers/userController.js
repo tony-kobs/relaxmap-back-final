@@ -8,9 +8,19 @@ export const getCurrentUser = async (req, res) => {
 };
 
 export const updateCurrentUser = async (req, res) => {
+  const updateData = {};
+
+  if (req.body.name !== undefined) {
+    updateData.name = req.body.name;
+  }
+
+  if (req.file) {
+    updateData.avatar = await saveFileToCloudinary(req.file, 'avatars');
+  }
+
   const user = await User.findByIdAndUpdate(
     req.user._id,
-    { name: req.body.name },
+    updateData,
     { new: true, runValidators: true },
   );
 
