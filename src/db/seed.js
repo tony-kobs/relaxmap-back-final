@@ -111,7 +111,6 @@ for (const feedback of feedbacks) {
       userName: feedback.userName,
       rate: feedback.rate,
       description: feedback.description,
-      status: 'approved',
     },
     { upsert: true },
   );
