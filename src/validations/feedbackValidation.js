@@ -18,3 +18,9 @@ export const createFeedbackSchema = {
     description: Joi.string().min(1).max(200).required(),
   }),
 };
+
+export const feedbackIdSchema = {
+  [Segments.PARAMS]: Joi.object({
+    feedbackId: objectId.required(),
+  }),
+};

@@ -4,10 +4,18 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 
 vi.mock('../src/models/feedback.js', () => ({
-  Feedback: { create: vi.fn() },
+  Feedback: {
+    create: vi.fn(),
+    findById: vi.fn(),
+    findOneAndUpdate: vi.fn(),
+    aggregate: vi.fn(),
+  },
 }));
 vi.mock('../src/models/location.js', () => ({
-  Location: { findById: vi.fn() },
+  Location: {
+    findById: vi.fn(),
+    findByIdAndUpdate: vi.fn(),
+  },
 }));
 vi.mock('../src/models/category.js', () => ({}));
 vi.mock('../src/models/session.js', () => ({
@@ -27,7 +35,7 @@ import { errorHandler } from '../src/middleware/errorHandler.js';
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
-app.use(feedbackRoutes);
+app.use('/feedbacks', feedbackRoutes);
 app.use(errorHandler);
 
 const userId = '665f1b2b2f4e0a1c3b5d7f91';
@@ -43,11 +51,6 @@ const validBody = {
   userName: 'Relax Tester',
   rate: 5,
   description: 'Wonderful place to unwind',
-};
-
-const authCookies = {
-  sessionId: validSession._id,
-  accessToken: validSession.accessToken,
 };
 
 beforeEach(() => {
@@ -155,6 +158,7 @@ describe('POST /feedbacks (createFeedback)', () => {
         userName: validBody.userName,
         rate: validBody.rate,
         description: validBody.description,
+        status: 'pending',
       });
     });
   });
@@ -189,6 +193,105 @@ describe('POST /feedbacks (createFeedback)', () => {
 
       expect(res.status).toBe(500);
       expect(res.body).toEqual({ message: 'db down' });
+    });
+  });
+});
+
+describe('PATCH /feedbacks/:feedbackId/approve', () => {
+  const feedbackId = '665f1b2b2f4e0a1c3b5d7f94';
+  const locationId = validBody.locationId;
+
+  it('returns 401 without auth cookies', async () => {
+    const res = await request(app).patch(`/feedbacks/${feedbackId}/approve`);
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ message: 'Missing access token' });
+  });
+
+  it('returns 404 when feedback is not found', async () => {
+    Feedback.findOneAndUpdate.mockResolvedValue(null);
+    Feedback.findById.mockResolvedValue(null);
+
+    const res = await request(app)
+      .patch(`/feedbacks/${feedbackId}/approve`)
+      .set('Cookie', [
+        `sessionId=${validSession._id}`,
+        `accessToken=${validSession.accessToken}`,
+      ]);
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ message: 'Feedback not found' });
+    expect(Location.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('approves pending feedback and recalculates location rating', async () => {
+    const approvedFeedback = {
+      _id: feedbackId,
+      locationId,
+      owner: userId,
+      userName: validBody.userName,
+      rate: 5,
+      description: validBody.description,
+      status: 'approved',
+    };
+    Feedback.findOneAndUpdate.mockResolvedValue(approvedFeedback);
+    Feedback.aggregate.mockResolvedValue([{ rating: 4.5, reviewsCount: 2 }]);
+    Location.findByIdAndUpdate.mockResolvedValue({});
+
+    const res = await request(app)
+      .patch(`/feedbacks/${feedbackId}/approve`)
+      .set('Cookie', [
+        `sessionId=${validSession._id}`,
+        `accessToken=${validSession.accessToken}`,
+      ]);
+
+    expect(res.status).toBe(200);
+    expect(Feedback.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: feedbackId, status: 'pending' },
+      { status: 'approved' },
+      { new: true },
+    );
+    expect(Feedback.findById).not.toHaveBeenCalled();
+    expect(Feedback.aggregate).toHaveBeenCalledWith([
+      { $match: { locationId, status: 'approved' } },
+      {
+        $group: {
+          _id: null,
+          rating: { $avg: '$rate' },
+          reviewsCount: { $sum: 1 },
+        },
+      },
+    ]);
+    expect(Location.findByIdAndUpdate).toHaveBeenCalledWith(locationId, {
+      rating: 4.5,
+      reviewsCount: 2,
+    });
+    expect(res.body.status).toBe('approved');
+  });
+
+  it('recalculates location stats when feedback is already approved', async () => {
+    const approvedFeedback = {
+      _id: feedbackId,
+      locationId,
+      status: 'approved',
+    };
+    Feedback.findOneAndUpdate.mockResolvedValue(null);
+    Feedback.findById.mockResolvedValue(approvedFeedback);
+    Feedback.aggregate.mockResolvedValue([{ rating: 4, reviewsCount: 1 }]);
+    Location.findByIdAndUpdate.mockResolvedValue({});
+
+    const res = await request(app)
+      .patch(`/feedbacks/${feedbackId}/approve`)
+      .set('Cookie', [
+        `sessionId=${validSession._id}`,
+        `accessToken=${validSession.accessToken}`,
+      ]);
+
+    expect(res.status).toBe(200);
+    expect(Feedback.findById).toHaveBeenCalledWith(feedbackId);
+    expect(Location.findByIdAndUpdate).toHaveBeenCalledWith(locationId, {
+      rating: 4,
+      reviewsCount: 1,
     });
   });
 });

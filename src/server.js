@@ -1,9 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
+import { assertRequiredEnv } from './config/env.js';
 import { connectMongoDB } from './db/connectMongoDB.js';
 import { logger } from './middleware/logger.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
@@ -13,8 +14,11 @@ import userRoutes from './routes/userRoutes.js';
 import locationRoutes from './routes/locationRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import feedbackRoutes from './routes/feedbackRoutes.js';
-import healthRoutes from './routes/healthRoutes.js';
 import { openApiSpec } from './docs/openapi.js';
+
+dotenv.config();
+dotenv.config({ path: '.env.local', override: true });
+assertRequiredEnv();
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
@@ -51,12 +55,18 @@ app.use(
   }),
 );
 
-app.use(healthRoutes);
-app.use(authRoutes);
-app.use(userRoutes);
-app.use(locationRoutes);
-app.use(categoryRoutes);
-app.use(feedbackRoutes);
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    message: 'OK',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.use('/auth', authRoutes);
+app.use('/users', userRoutes);
+app.use('/locations', locationRoutes);
+app.use('/categories', categoryRoutes);
+app.use('/feedbacks', feedbackRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

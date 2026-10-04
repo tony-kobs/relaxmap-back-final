@@ -25,7 +25,7 @@ import { errorHandler } from '../src/middleware/errorHandler.js';
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
-app.use(userRoutes);
+app.use('/users', userRoutes);
 app.use(errorHandler);
 
 const userId = '665f1b2b2f4e0a1c3b5d7f91';
@@ -84,7 +84,7 @@ describe('PATCH /users/me', () => {
   });
 });
 
-describe('PATCH /users/me/avatar', () => {
+describe('PATCH /users/me (avatar upload)', () => {
   it('uploads an avatar and saves the url', async () => {
     const updated = {
       _id: userId,
@@ -95,7 +95,7 @@ describe('PATCH /users/me/avatar', () => {
     User.findByIdAndUpdate.mockResolvedValue(updated);
 
     const res = await request(app)
-      .patch('/users/me/avatar')
+      .patch('/users/me')
       .set('Cookie', authCookie)
       .attach('avatar', png, { filename: 'avatar.png', contentType: 'image/png' });
 
@@ -109,19 +109,34 @@ describe('PATCH /users/me/avatar', () => {
     );
   });
 
-  it('returns 400 when the file is missing', async () => {
-    const res = await request(app)
-      .patch('/users/me/avatar')
-      .set('Cookie', authCookie);
+  it('returns 200 when updating both name and avatar', async () => {
+    const updated = {
+      _id: userId,
+      name: 'New Name',
+      avatar: 'https://cdn.example/avatar.png',
+    };
+    saveFileToCloudinary.mockResolvedValue(updated.avatar);
+    User.findByIdAndUpdate.mockResolvedValue(updated);
 
-    expect(res.status).toBe(400);
-    expect(res.body).toEqual({ message: 'Avatar file is required' });
-    expect(saveFileToCloudinary).not.toHaveBeenCalled();
+    const res = await request(app)
+      .patch('/users/me')
+      .set('Cookie', authCookie)
+      .field('name', 'New Name')
+      .attach('avatar', png, { filename: 'avatar.png', contentType: 'image/png' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(updated);
+    expect(saveFileToCloudinary).toHaveBeenCalledWith(expect.any(Object), 'avatars');
+    expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+      userId,
+      { name: 'New Name', avatar: updated.avatar },
+      { new: true, runValidators: true },
+    );
   });
 
   it('returns 400 for a non-image file', async () => {
     const res = await request(app)
-      .patch('/users/me/avatar')
+      .patch('/users/me')
       .set('Cookie', authCookie)
       .attach('avatar', Buffer.from('hello'), {
         filename: 'notes.txt',
