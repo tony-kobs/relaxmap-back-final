@@ -4,7 +4,7 @@ import { authenticate } from '../middleware/authenticate.js';
 import {
   getFeedbacks,
   createFeedback,
-  approveFeedback,
+  deleteFeedback,
 } from '../controllers/feedbackController.js';
 import {
   feedbackQuerySchema,
@@ -16,11 +16,11 @@ const router = Router();
 
 router.get('/', celebrate(feedbackQuerySchema), getFeedbacks);
 router.post('/', authenticate, celebrate(createFeedbackSchema), createFeedback);
-router.patch(
-  '/:feedbackId/approve',
+router.delete(
+  '/:feedbackId',
   authenticate,
   celebrate(feedbackIdSchema),
-  approveFeedback,
+  deleteFeedback,
 );
 
 export default router;

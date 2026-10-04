@@ -7,7 +7,6 @@ vi.mock('../src/models/feedback.js', () => ({
   Feedback: {
     create: vi.fn(),
     findById: vi.fn(),
-    findOneAndUpdate: vi.fn(),
     aggregate: vi.fn(),
   },
 }));
@@ -132,14 +131,15 @@ describe('POST /feedbacks (createFeedback)', () => {
   });
 
   describe('success', () => {
-    it('creates a feedback and returns it with 201', async () => {
+    it('creates a feedback, recalculates location rating and returns 201', async () => {
       const createdDoc = {
         _id: '665f1b2b2f4e0a1c3b5d7f94',
         ...validBody,
         owner: userId,
-        status: 'pending',
       };
       Feedback.create.mockResolvedValue(createdDoc);
+      Feedback.aggregate.mockResolvedValue([{ rating: 5, reviewsCount: 1 }]);
+      Location.findByIdAndUpdate.mockResolvedValue({});
 
       const res = await request(app)
         .post('/feedbacks')
@@ -151,14 +151,26 @@ describe('POST /feedbacks (createFeedback)', () => {
 
       expect(res.status).toBe(201);
       expect(res.body).toEqual(createdDoc);
-      expect(Feedback.create).toHaveBeenCalledTimes(1);
       expect(Feedback.create).toHaveBeenCalledWith({
         locationId: validBody.locationId,
         owner: userId,
         userName: validBody.userName,
         rate: validBody.rate,
         description: validBody.description,
-        status: 'pending',
+      });
+      expect(Feedback.aggregate).toHaveBeenCalledWith([
+        { $match: { locationId: validBody.locationId } },
+        {
+          $group: {
+            _id: null,
+            rating: { $avg: '$rate' },
+            reviewsCount: { $sum: 1 },
+          },
+        },
+      ]);
+      expect(Location.findByIdAndUpdate).toHaveBeenCalledWith(validBody.locationId, {
+        rating: 5,
+        reviewsCount: 1,
       });
     });
   });
@@ -197,23 +209,22 @@ describe('POST /feedbacks (createFeedback)', () => {
   });
 });
 
-describe('PATCH /feedbacks/:feedbackId/approve', () => {
+describe('DELETE /feedbacks/:feedbackId', () => {
   const feedbackId = '665f1b2b2f4e0a1c3b5d7f94';
   const locationId = validBody.locationId;
 
   it('returns 401 without auth cookies', async () => {
-    const res = await request(app).patch(`/feedbacks/${feedbackId}/approve`);
+    const res = await request(app).delete(`/feedbacks/${feedbackId}`);
 
     expect(res.status).toBe(401);
     expect(res.body).toEqual({ message: 'Missing access token' });
   });
 
   it('returns 404 when feedback is not found', async () => {
-    Feedback.findOneAndUpdate.mockResolvedValue(null);
     Feedback.findById.mockResolvedValue(null);
 
     const res = await request(app)
-      .patch(`/feedbacks/${feedbackId}/approve`)
+      .delete(`/feedbacks/${feedbackId}`)
       .set('Cookie', [
         `sessionId=${validSession._id}`,
         `accessToken=${validSession.accessToken}`,
@@ -221,77 +232,50 @@ describe('PATCH /feedbacks/:feedbackId/approve', () => {
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ message: 'Feedback not found' });
-    expect(Location.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 
-  it('approves pending feedback and recalculates location rating', async () => {
-    const approvedFeedback = {
+  it('returns 403 when user is not the owner', async () => {
+    Feedback.findById.mockResolvedValue({
       _id: feedbackId,
       locationId,
-      owner: userId,
-      userName: validBody.userName,
-      rate: 5,
-      description: validBody.description,
-      status: 'approved',
-    };
-    Feedback.findOneAndUpdate.mockResolvedValue(approvedFeedback);
-    Feedback.aggregate.mockResolvedValue([{ rating: 4.5, reviewsCount: 2 }]);
-    Location.findByIdAndUpdate.mockResolvedValue({});
-
-    const res = await request(app)
-      .patch(`/feedbacks/${feedbackId}/approve`)
-      .set('Cookie', [
-        `sessionId=${validSession._id}`,
-        `accessToken=${validSession.accessToken}`,
-      ]);
-
-    expect(res.status).toBe(200);
-    expect(Feedback.findOneAndUpdate).toHaveBeenCalledWith(
-      { _id: feedbackId, status: 'pending' },
-      { status: 'approved' },
-      { new: true },
-    );
-    expect(Feedback.findById).not.toHaveBeenCalled();
-    expect(Feedback.aggregate).toHaveBeenCalledWith([
-      { $match: { locationId, status: 'approved' } },
-      {
-        $group: {
-          _id: null,
-          rating: { $avg: '$rate' },
-          reviewsCount: { $sum: 1 },
-        },
-      },
-    ]);
-    expect(Location.findByIdAndUpdate).toHaveBeenCalledWith(locationId, {
-      rating: 4.5,
-      reviewsCount: 2,
+      owner: { toString: () => '665f1b2b2f4e0a1c3b5d7f99' },
+      deleteOne: vi.fn(),
     });
-    expect(res.body.status).toBe('approved');
-  });
-
-  it('recalculates location stats when feedback is already approved', async () => {
-    const approvedFeedback = {
-      _id: feedbackId,
-      locationId,
-      status: 'approved',
-    };
-    Feedback.findOneAndUpdate.mockResolvedValue(null);
-    Feedback.findById.mockResolvedValue(approvedFeedback);
-    Feedback.aggregate.mockResolvedValue([{ rating: 4, reviewsCount: 1 }]);
-    Location.findByIdAndUpdate.mockResolvedValue({});
 
     const res = await request(app)
-      .patch(`/feedbacks/${feedbackId}/approve`)
+      .delete(`/feedbacks/${feedbackId}`)
       .set('Cookie', [
         `sessionId=${validSession._id}`,
         `accessToken=${validSession.accessToken}`,
       ]);
 
-    expect(res.status).toBe(200);
-    expect(Feedback.findById).toHaveBeenCalledWith(feedbackId);
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ message: 'Forbidden' });
+  });
+
+  it('deletes own feedback, recalculates rating and returns 204', async () => {
+    const deleteOne = vi.fn().mockResolvedValue(undefined);
+    Feedback.findById.mockResolvedValue({
+      _id: feedbackId,
+      locationId,
+      owner: { toString: () => userId },
+      deleteOne,
+    });
+    Feedback.aggregate.mockResolvedValue([]);
+    Location.findByIdAndUpdate.mockResolvedValue({});
+
+    const res = await request(app)
+      .delete(`/feedbacks/${feedbackId}`)
+      .set('Cookie', [
+        `sessionId=${validSession._id}`,
+        `accessToken=${validSession.accessToken}`,
+      ]);
+
+    expect(res.status).toBe(204);
+    expect(deleteOne).toHaveBeenCalledTimes(1);
     expect(Location.findByIdAndUpdate).toHaveBeenCalledWith(locationId, {
-      rating: 4,
-      reviewsCount: 1,
+      rating: 0,
+      reviewsCount: 0,
     });
   });
 });

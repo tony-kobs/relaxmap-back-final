@@ -36,7 +36,7 @@ app.use(
   '/api-docs',
   swaggerUi.serve,
   swaggerUi.setup(openApiSpec, {
-    customSiteTitle: 'API Docs',
+    customSiteTitle: 'Relax Map API',
   }),
 );
 
