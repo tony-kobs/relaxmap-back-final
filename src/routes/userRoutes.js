@@ -5,7 +5,6 @@ import { upload } from '../middleware/multer.js';
 import {
   getCurrentUser,
   updateCurrentUser,
-  updateUserAvatar,
   getUserById,
   getUserLocations,
 } from '../controllers/userController.js';
@@ -18,12 +17,13 @@ import { updateMeSchema } from '../validations/usersValidation.js';
 const router = Router();
 
 router.get('/users/me', authenticate, getCurrentUser);
-router.patch('/users/me', authenticate, celebrate(updateMeSchema), updateCurrentUser);
+// PATCH /users/me — приватний, приймає multipart/form-data: name (text) + avatar (file)
 router.patch(
-  '/users/me/avatar',
+  '/users/me',
   authenticate,
   upload.single('avatar'),
-  updateUserAvatar,
+  celebrate(updateMeSchema),
+  updateCurrentUser,
 );
 router.get('/users/:userId/locations', celebrate(userLocationsQuerySchema), getUserLocations);
 router.get('/users/:userId', celebrate(userIdSchema), getUserById);

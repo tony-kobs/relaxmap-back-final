@@ -8,9 +8,19 @@ export const getCurrentUser = async (req, res) => {
 };
 
 export const updateCurrentUser = async (req, res) => {
+  const updateData = {};
+
+  if (req.body.name !== undefined) {
+    updateData.name = req.body.name;
+  }
+
+  if (req.file) {
+    updateData.avatar = await saveFileToCloudinary(req.file, 'avatars');
+  }
+
   const user = await User.findByIdAndUpdate(
     req.user._id,
-    { name: req.body.name },
+    updateData,
     { new: true, runValidators: true },
   );
 
@@ -21,24 +31,6 @@ export const updateCurrentUser = async (req, res) => {
   res.status(200).json(user);
 };
 
-export const updateUserAvatar = async (req, res) => {
-  if (!req.file) {
-    throw createHttpError(400, 'Avatar file is required');
-  }
-
-  const avatar = await saveFileToCloudinary(req.file, 'avatars');
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
-    { avatar },
-    { new: true, runValidators: true },
-  );
-
-  if (!user) {
-    throw createHttpError(404, 'User not found');
-  }
-
-  res.status(200).json(user);
-};
 export const getUserById = async (req, res) => {
   const { userId } = req.params;
   const user = await User.findById(userId).select('_id name avatar');

@@ -2,6 +2,6 @@ import { Joi, Segments } from 'celebrate';
 
 export const updateMeSchema = {
   [Segments.BODY]: Joi.object({
-    name: Joi.string().trim().min(2).max(32).required(),
+    name: Joi.string().trim().min(2).max(32).optional(),
   }),
 };

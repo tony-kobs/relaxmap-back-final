@@ -98,34 +98,35 @@ export const openApiSpec = {
       },
       patch: {
         tags: ['Users'],
-        summary: 'Update current user',
-        security: [{ cookieAuth: [] }],
-        responses: {
-          200: { description: 'Updated user' },
-          401: { description: 'Unauthorized' },
-        },
-      },
-    },
-    '/users/me/avatar': {
-      patch: {
-        tags: ['Users'],
-        summary: 'Upload avatar',
+        summary: 'Update current user profile',
         security: [{ cookieAuth: [] }],
         requestBody: {
-          required: true,
+          required: false,
           content: {
             'multipart/form-data': {
               schema: {
                 type: 'object',
                 properties: {
-                  avatar: { type: 'string', format: 'binary' },
+                  name: {
+                    type: 'string',
+                    minLength: 2,
+                    maxLength: 32,
+                    description: 'New display name',
+                  },
+                  avatar: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Avatar image (jpg or png, max 1 MB)',
+                  },
                 },
               },
             },
           },
         },
         responses: {
-          200: { description: 'Updated user with avatar url' },
+          200: { description: 'Updated user object' },
+          401: { description: 'Unauthorized' },
+          400: { description: 'Validation error' },
         },
       },
     },
