@@ -1,67 +1,77 @@
 # Relax Map API
 
-Сервер **Природних Мандрів**: Express, MongoDB і сесія в httpOnly-куках.
+Бекенд **Природних Мандрів** (RelaxMap): Express 5, MongoDB (Mongoose 9), сесія в httpOnly-куках.
 
 [![Node.js](https://img.shields.io/badge/Node.js-ESM-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)](https://expressjs.com)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose_9-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com)
 [![Swagger](https://img.shields.io/badge/Swagger-api--docs-85EA2D?logo=swagger&logoColor=111111)](https://swagger.io)
 
-Публічні шляхи **без** префікса `/api`: `/auth`, `/users`, `/locations`, `/categories`, `/feedbacks`. Префікс додає Next.js у [фронтенді](https://github.com/tony-kobs/relaxmap-front-final). Локально сервер слухає порт **4000**, документація — `/api-docs`.
+Публічні шляхи **без** префікса `/api`: `/auth`, `/users`, `/locations`, `/categories`, `/feedbacks`, `/health`. Префікс `/api` додає Next.js у [фронтенді](https://github.com/tony-kobs/relaxmap-front-final).
+
+Локально: порт **4000** (див. `.env.template`). Документація: [`/api-docs`](http://localhost:4000/api-docs), сира специфікація: [`/api-docs.json`](http://localhost:4000/api-docs.json).
+
+Деплой бекенду — з гілки **`dev`**.
 
 ## Зміст
 
 1. [Стек](#стек)
 2. [Маршрути](#маршрути)
 3. [Форми відповідей](#форми-відповідей)
-4. [Локальна база](#локальна-база)
-5. [Каталог src](#каталог-src)
-6. [Запуск](#запуск)
+4. [Моделі](#моделі)
+5. [Локальна база](#локальна-база)
+6. [Каталог src](#каталог-src)
+7. [Запуск](#запуск)
+8. [Env](#env)
 
 ## Стек
 
 | Технологія | Роль |
 | --- | --- |
-| Express 5 | HTTP і маршрути |
+| Express 5 | HTTP, роути монтуються з префіксами (`/auth`, `/users`, …) |
 | Mongoose 9 | моделі й MongoDB |
-| JWT + cookies | `sessionId`, `accessToken`, `refreshToken` |
+| JWT + cookies | `sessionId`, `accessToken`, `refreshToken` (httpOnly) |
 | Celebrate / Joi | валідація query, params і body |
-| Multer + Cloudinary | фото локації й аватар |
+| Multer + Cloudinary | фото локацій і аватар |
 | Helmet, CORS | заголовки безпеки і доступ із фронта |
 | Pino | HTTP-логи |
 | Swagger UI | інтерактивна документація |
-| Nodemon | перезапуск у розробці |
+| Nodemon / Vitest | dev-перезапуск і тести |
 
-Пароль назовні не виходить: `toJSON` у моделі користувача його прибирає. Пошта є лише у відповіді `/users/me`.
+Пароль у відповідях не з’являється (`User.toJSON`). Поле `email` є лише в `/users/me`.
+
+При `login` / `register` старі сесії цього юзера видаляються. У `NODE_ENV=production` куки: `sameSite=none`, `secure=true` (крос-домен Vercel ↔ Render).
 
 ## Маршрути
 
-Колонка «Сесія» означає middleware `authenticate`.
+Колонка «Сесія» = middleware `authenticate` (куки `sessionId` + `accessToken`).
+
+Роутери підключаються так: `app.use('/auth', authRoutes)` тощо; у файлах роутів шляхи відносні (`/register`, `/me`, …).
 
 ### Auth
 
 | Метод | Шлях | Сесія | Що робить |
 | --- | --- | --- | --- |
-| `POST` | `/auth/register` | ні | створює акаунт і ставить куки |
-| `POST` | `/auth/login` | ні | вхід, ті самі куки |
-| `POST` | `/auth/logout` | ні | видаляє сесію і чистить куки, `204` |
-| `POST` | `/auth/refresh` | ні | нова пара токенів |
-| `GET` | `/auth/session` | ні | перевірка поточної сесії |
-| `POST` | `/auth/request-reset-email` | ні | лист для скидання пароля |
-| `POST` | `/auth/reset-password` | ні | новий пароль за токеном з листа |
+| `POST` | `/auth/register` | ні | акаунт + куки сесії, `201` |
+| `POST` | `/auth/login` | ні | вхід + куки, `200` |
+| `POST` | `/auth/logout` | ні | видаляє сесію, чистить куки, `204` |
+| `POST` | `/auth/refresh` | ні | нова пара токенів за `refreshToken` |
+| `GET` | `/auth/session` | ні | `{ success }`; при потребі тихо рефрешить куки |
+| `POST` | `/auth/request-reset-email` | ні | лист із посиланням на скидання |
+| `POST` | `/auth/reset-password` | ні | новий пароль за JWT з листа; сесії юзера чистяться |
 
-Після входу і реєстрації фронт куки не читає. Вони httpOnly.
-
-Обліковий запис: `name` 2–32, унікальний `email` до 64 символів, `password` 8–128.
+Обліковий запис: `name` 2–32, унікальний `email` до 64, `password` 8–128.
 
 ### Користувачі
 
 | Метод | Шлях | Сесія | Що робить |
 | --- | --- | --- | --- |
-| `GET` | `/users/me` | так | свій профіль, включно з email |
-| `PATCH` | `/users/me` | так | `name` і/або файл `avatar` (multipart) |
+| `GET` | `/users/me` | так | свій профіль, включно з `email` |
+| `PATCH` | `/users/me` | так | `multipart/form-data`: `name` (2–32) і/або файл `avatar` (jpg/png, ≤ 1 МБ) |
 | `GET` | `/users/:userId` | ні | публічні `_id`, `name`, `avatar` |
-| `GET` | `/users/:userId/locations` | ні | місця цієї людини, та сама пагінація, що в каталозі |
+| `GET` | `/users/:userId/locations` | ні | місця автора, пагінація як у каталозі |
+
+Окремого `PATCH /users/me/avatar` **немає** — аватар іде в `PATCH /users/me`.
 
 ### Місця
 
@@ -72,22 +82,38 @@
 | `POST` | `/locations` | так | створення, `multipart/form-data` |
 | `PATCH` | `/locations/:locationId` | так | зміна; лише автор, інакше `403` |
 
-Query списку: `page`, `limit` (1–100), `region`, `type` (один id або кілька повторів ключа), `search` по назві, `sort` = `rating` (за замовчуванням), `popular` або `new`.
+Query списку: `page`, `limit` (1–100), `region` (id), `type` (один id або кілька), `search` по назві, `sort` = `rating` (за замовчуванням) | `popular` | `new`.
 
-Тіло створення і редагування: `name` 3–96, `type` і `region` як id категорії, `description` 20–6000, файли `images` (jpg/png, до 8 штук). Потрібне хоча б одне фото.
+Тіло створення / редагування: `name` 3–96, `type` і `region` (id категорії), `description` 20–6000, файли `images` (jpg/png, 1–8 шт.).
 
-### Категорії і відгуки
+### Категорії
 
 | Метод | Шлях | Сесія | Що робить |
 | --- | --- | --- | --- |
-| `GET` | `/categories/regions` | ні | масив `{ _id, name, kind: "region" }` |
-| `GET` | `/categories/types` | ні | масив `{ _id, name, kind: "type" }` |
-| `GET` | `/feedbacks` | ні | лише `status: "approved"` |
-| `POST` | `/feedbacks` | так | новий відгук зі статусом `pending` |
-| `PATCH` | `/feedbacks/:feedbackId/approve` | так | `pending` → `approved`, перерахунок `rating` і `reviewsCount` локації |
-| `GET` | `/health` | ні | перевірка, що процес живий |
+| `GET` | `/categories/regions` | ні | `{ _id, name, kind: "region" }[]` |
+| `GET` | `/categories/types` | ні | `{ _id, name, kind: "type" }[]` |
 
-`GET /feedbacks` без `locationId` — стрічка для головної. З `locationId` — відгуки місця, є `page` і `limit`. Тіло відгуку: `locationId`, `userName` 2–32, `rate` 1–5, `description` 1–200. Поки відгук не схвалений, у публічний список він не потрапляє. Після `PATCH .../approve` рейтинг і кількість відгуків локації рахуються з усіх `approved`.
+### Відгуки
+
+| Метод | Шлях | Сесія | Що робить |
+| --- | --- | --- | --- |
+| `GET` | `/feedbacks` | ні | список відгуків (пагінація) |
+| `POST` | `/feedbacks` | так | новий відгук; одразу в списку; перерахунок `rating` і `reviewsCount` локації |
+| `DELETE` | `/feedbacks/:feedbackId` | так | видалення свого відгуку; інакше `403`; перерахунок рейтингу |
+
+Модерації / статусів `pending` | `approved` немає (за ТЗ GET + POST; DELETE — власний відгук).
+
+Тіло створення: `{ locationId, userName, rate, description }` — `userName` 2–32, `rate` 1–5, `description` 1–200.
+
+`GET /feedbacks` без `locationId` — стрічка для головної; з `locationId` — відгуки місця (`page`, `limit`).
+
+### Службове
+
+| Метод | Шлях | Сесія | Що робить |
+| --- | --- | --- | --- |
+| `GET` | `/health` | ні | `{ message: "OK", timestamp }` — процес живий |
+| `GET` | `/api-docs` | ні | Swagger UI |
+| `GET` | `/api-docs.json` | ні | OpenAPI JSON |
 
 ## Форми відповідей
 
@@ -97,17 +123,23 @@ Query списку: `page`, `limit` (1–100), `region`, `type` (один id а�
 { "data": [], "page": 1, "limit": 10, "total": 0, "totalPages": 0 }
 ```
 
-Картка місця в `data` містить `name`, `description`, `images`, `rating`, `reviewsCount`, об'єкти `type` і `region`, а також `owner` з `_id`, `name` і `avatar`.
+Картка місця: `name`, `description`, `images`, `rating`, `reviewsCount`, об’єкти `type` і `region`, `owner` (`_id`, `name`, `avatar`).
+
+Помилки зазвичай: `{ "message": "..." }` (Celebrate / `http-errors` / Multer).
+
+`GET /auth/session`: `{ "success": true | false }` (завжди HTTP 200).
+
+## Моделі
 
 ```text
 User        name, email, password, avatar
 Session     userId, accessToken, refreshToken, терміни дії
 Category    name, kind = region | type
 Location    name, type, region, description, images[], owner, rating, reviewsCount
-Feedback    locationId, owner, userName, rate, description, status = pending | approved
+Feedback    locationId, owner, userName, rate, description
 ```
 
-Регіон і тип — це одна колекція `Category`, їх розрізняє поле `kind`.
+Регіон і тип — одна колекція `Category`, розрізняє поле `kind`. Поля `type`, `region`, `images`, `owner`, `rating` не перейменовувати під сторонні референси.
 
 ## Локальна база
 
@@ -115,49 +147,63 @@ Feedback    locationId, owner, userName, rate, description, status = pending | a
 npm run seed
 ```
 
-Команда читає JSON у `src/db/data` і піднімає регіони, типи місць, локації та вже схвалені відгуки. Повторний запуск оновлює ті самі документи, а не плодить дублікати.
+Читає JSON з `src/db/data`, піднімає регіони, типи, локації та відгуки. Повторний запуск оновлює ті самі документи (upsert), не плодить дублікати.
 
 ## Каталог src
 
 ```text
 src/
-├── server.js                 Express, CORS, Helmet, Swagger, підключення роутів
-├── routes/                   шляхи без префікса /api
-├── controllers/              хендлери auth, users, locations, categories, feedbacks
-├── services/auth.js          куки сесії
+├── server.js                 Express, CORS, Helmet, Swagger, /health, mount роутів
+├── config/env.js             fail-fast: MONGO_URL, JWT_* обов’язкові
+├── routes/                   відносні шляхи; префікс задає server.js
+├── controllers/              auth, users, locations, categories, feedbacks
+├── services/auth.js          сесії, куки, refresh
 ├── models/                   User, Session, Category, Location, Feedback
-├── validations/              схеми Celebrate
+├── validations/              Celebrate / Joi
 ├── middleware/               authenticate, multer, logger, 404, помилки
 ├── docs/openapi.js           специфікація для /api-docs
 ├── db/connectMongoDB.js
 ├── db/seed.js
-└── utils/                    Cloudinary, пошта
+├── templates/                лист скидання пароля
+└── utils/                    Cloudinary, SMTP
 ```
 
 ## Запуск
 
-Потрібні Node.js 20+, MongoDB і, для фото та листів, акаунти Cloudinary та SMTP.
+Потрібні Node.js 20+, MongoDB Atlas (або локальна), для фото/листів — Cloudinary і SMTP.
 
 ```bash
 git clone https://github.com/tony-kobs/relaxmap-back-final.git
 cd relaxmap-back-final
 npm install
 cp .env.template .env
+# або скопіюй у .env.local — він має пріоритет над .env
 npm run dev
 npm run seed
 ```
 
-Сервер: `http://localhost:4000`. Swagger: `http://localhost:4000/api-docs`. Сира специфікація: `http://localhost:4000/api-docs.json`.
-
-Обов’язкові змінні при старті: `MONGO_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`. Решту див. у `.env.template` (`FRONTEND_URL`, Cloudinary, SMTP).
-
-`FRONTEND_URL` потрапляє в CORS разом із `http://localhost:3000`. У `NODE_ENV=production` куки сесії ставляться з `sameSite=none` і `secure=true` (крос-доменний фронт).
+Сервер: `http://localhost:4000`.
 
 | Команда | Результат |
 | --- | --- |
 | `npm run dev` | nodemon |
 | `npm start` | `node src/server.js` |
 | `npm run seed` | демо-дані в MongoDB |
+| `npm test` | Vitest (supertest) |
 | `npm run lint` | ESLint по `src` |
 
-Клієнт, який ходить у це API через власний проксі: [relaxmap-front-final](https://github.com/tony-kobs/relaxmap-front-final).
+Фронт: [relaxmap-front-final](https://github.com/tony-kobs/relaxmap-front-final).
+
+## Env
+
+Сервер і seed вантажать `.env`, потім `.env.local` (override). Обидва файли в `.gitignore`.
+
+Обов’язкові при старті (`src/config/env.js`):
+
+- `MONGO_URL`
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+
+Решта — у `.env.template`: `PORT`, `NODE_ENV`, `FRONTEND_URL` (CORS + лінки reset-password), Cloudinary, SMTP.
+
+`FRONTEND_URL` додається в CORS разом із `http://localhost:3000`. Для продакшену вистав `NODE_ENV=production` і реальний URL фронта.

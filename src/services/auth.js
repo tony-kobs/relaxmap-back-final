@@ -26,17 +26,21 @@ export const createSession = async (userId) => {
 };
 
 export const setSessionCookies = (res, session) => {
+  // Cookie lifetime follows refresh (30d). Access JWT still expires in 15m in DB;
+  // authenticate /auth/session refresh before the short TTL kills the browser cookie.
+  const cookieExpires = session.refreshTokenValidUntil;
+
   res.cookie('sessionId', session._id.toString(), {
     ...baseCookieOptions,
-    expires: session.refreshTokenValidUntil,
+    expires: cookieExpires,
   });
   res.cookie('accessToken', session.accessToken, {
     ...baseCookieOptions,
-    expires: session.accessTokenValidUntil,
+    expires: cookieExpires,
   });
   res.cookie('refreshToken', session.refreshToken, {
     ...baseCookieOptions,
-    expires: session.refreshTokenValidUntil,
+    expires: cookieExpires,
   });
 };
 
