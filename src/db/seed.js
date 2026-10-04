@@ -1,9 +1,12 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mongoose from 'mongoose';
 import { connectMongoDB } from './connectMongoDB.js';
+
+dotenv.config();
+dotenv.config({ path: '.env.local', override: true });
 import { Category } from '../models/category.js';
 import { Feedback } from '../models/feedback.js';
 import { Location } from '../models/location.js';

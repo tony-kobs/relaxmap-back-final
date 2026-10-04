@@ -4,14 +4,19 @@ import { isValidObjectId } from 'mongoose';
 import { FIFTEEN_MINUTES, THIRTY_DAYS } from '../constants/time.js';
 import { Session } from '../models/session.js';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const baseCookieOptions = {
   httpOnly: true,
-  sameSite: 'lax',
-  secure: process.env.NODE_ENV === 'production',
+  // Cross-origin front (Vercel) ↔ API (Render) needs None+Secure in production
+  sameSite: isProd ? 'none' : 'lax',
+  secure: isProd,
   path: '/',
 };
 
 export const createSession = async (userId) => {
+  await Session.deleteMany({ userId });
+
   const tokens = generateTokens(userId);
 
   return Session.create({

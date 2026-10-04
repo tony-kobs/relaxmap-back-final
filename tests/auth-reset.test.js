@@ -25,7 +25,7 @@ process.env.SMTP_FROM = 'noreply@relaxmap.local';
 
 const app = express();
 app.use(express.json());
-app.use(authRoutes);
+app.use('/auth', authRoutes);
 app.use(errorHandler);
 
 const userId = '665f1b2b2f4e0a1c3b5d7f91';

@@ -59,8 +59,7 @@
 | Метод | Шлях | Сесія | Що робить |
 | --- | --- | --- | --- |
 | `GET` | `/users/me` | так | свій профіль, включно з email |
-| `PATCH` | `/users/me` | так | оновлення профілю |
-| `PATCH` | `/users/me/avatar` | так | аватар, поле файлу `avatar` |
+| `PATCH` | `/users/me` | так | `name` і/або файл `avatar` (multipart) |
 | `GET` | `/users/:userId` | ні | публічні `_id`, `name`, `avatar` |
 | `GET` | `/users/:userId/locations` | ні | місця цієї людини, та сама пагінація, що в каталозі |
 
@@ -85,9 +84,10 @@ Query списку: `page`, `limit` (1–100), `region`, `type` (один id а�
 | `GET` | `/categories/types` | ні | масив `{ _id, name, kind: "type" }` |
 | `GET` | `/feedbacks` | ні | лише `status: "approved"` |
 | `POST` | `/feedbacks` | так | новий відгук зі статусом `pending` |
+| `PATCH` | `/feedbacks/:feedbackId/approve` | так | `pending` → `approved`, перерахунок `rating` і `reviewsCount` локації |
 | `GET` | `/health` | ні | перевірка, що процес живий |
 
-`GET /feedbacks` без `locationId` — стрічка для головної. З `locationId` — відгуки місця, є `page` і `limit`. Тіло відгуку: `locationId`, `userName` 2–32, `rate` 1–5, `description` 1–200. Поки відгук не схвалений, у публічний список він не потрапляє.
+`GET /feedbacks` без `locationId` — стрічка для головної. З `locationId` — відгуки місця, є `page` і `limit`. Тіло відгуку: `locationId`, `userName` 2–32, `rate` 1–5, `description` 1–200. Поки відгук не схвалений, у публічний список він не потрапляє. Після `PATCH .../approve` рейтинг і кількість відгуків локації рахуються з усіх `approved`.
 
 ## Форми відповідей
 
@@ -131,7 +131,7 @@ src/
 ├── docs/openapi.js           специфікація для /api-docs
 ├── db/connectMongoDB.js
 ├── db/seed.js
-└── utils/                    Cloudinary, пошта, заглушка 501
+└── utils/                    Cloudinary, пошта
 ```
 
 ## Запуск
@@ -149,27 +149,9 @@ npm run seed
 
 Сервер: `http://localhost:4000`. Swagger: `http://localhost:4000/api-docs`. Сира специфікація: `http://localhost:4000/api-docs.json`.
 
-```env
-PORT=4000
-MONGO_URL=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/relaxmap
+Обов’язкові змінні при старті: `MONGO_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`. Решту див. у `.env.template` (`FRONTEND_URL`, Cloudinary, SMTP).
 
-JWT_ACCESS_SECRET=change_me_access_secret
-JWT_REFRESH_SECRET=change_me_refresh_secret
-
-FRONTEND_URL=http://localhost:3000
-
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-
-SMTP_HOST=
-SMTP_PORT=
-SMTP_USER=
-SMTP_PASSWORD=
-SMTP_FROM=
-```
-
-`FRONTEND_URL` потрапляє в CORS разом із `http://localhost:3000`.
+`FRONTEND_URL` потрапляє в CORS разом із `http://localhost:3000`. У `NODE_ENV=production` куки сесії ставляться з `sameSite=none` і `secure=true` (крос-доменний фронт).
 
 | Команда | Результат |
 | --- | --- |

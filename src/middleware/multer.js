@@ -20,11 +20,3 @@ export const upload = multer({
   },
   fileFilter: imageFileFilter,
 });
-
-export const uploadLocationImages = multer({
-  storage,
-  limits: {
-    fileSize: 1024 * 1024,
-  },
-  fileFilter: imageFileFilter,
-});

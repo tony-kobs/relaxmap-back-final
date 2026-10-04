@@ -16,16 +16,16 @@ import { updateMeSchema } from '../validations/usersValidation.js';
 
 const router = Router();
 
-router.get('/users/me', authenticate, getCurrentUser);
-// PATCH /users/me — приватний, приймає multipart/form-data: name (text) + avatar (file)
+router.get('/me', authenticate, getCurrentUser);
+// PATCH /users/me — multipart/form-data: name (text) + avatar (file)
 router.patch(
-  '/users/me',
+  '/me',
   authenticate,
   upload.single('avatar'),
   celebrate(updateMeSchema),
   updateCurrentUser,
 );
-router.get('/users/:userId/locations', celebrate(userLocationsQuerySchema), getUserLocations);
-router.get('/users/:userId', celebrate(userIdSchema), getUserById);
+router.get('/:userId/locations', celebrate(userLocationsQuerySchema), getUserLocations);
+router.get('/:userId', celebrate(userIdSchema), getUserById);
 
 export default router;
