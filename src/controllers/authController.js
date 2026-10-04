@@ -136,7 +136,9 @@ export const requestResetEmail = async (req, res) => {
     },
   );
 
-  const link = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+  // FRONTEND_URL може бути заданий зі слешем у кінці
+  const frontendUrl = process.env.FRONTEND_URL.trim().replace(/\/+$/, '');
+  const link = `${frontendUrl}/reset-password?token=${token}`;
   const html = await renderResetEmail({ name: user.name, link });
 
   await sendEmail({

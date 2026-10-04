@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import createHttpError from 'http-errors';
 
 vi.mock('../src/models/user.js', () => ({
   User: { findOne: vi.fn() },
@@ -84,6 +85,42 @@ describe('POST /auth/request-reset-email', () => {
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ message: 'User not found' });
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('builds a link without a double slash when FRONTEND_URL ends with /', async () => {
+    const original = process.env.FRONTEND_URL;
+    process.env.FRONTEND_URL = 'https://relaxmap.example/';
+    User.findOne.mockResolvedValue(makeUser());
+    sendEmail.mockResolvedValue();
+
+    try {
+      const res = await request(app)
+        .post('/auth/request-reset-email')
+        .send({ email });
+
+      expect(res.status).toBe(200);
+      const html = sendEmail.mock.calls[0][0].html.replaceAll('&#x3D;', '=');
+      expect(html).toContain('https://relaxmap.example/reset-password?token=');
+      expect(html).not.toContain('relaxmap.example//');
+    } finally {
+      process.env.FRONTEND_URL = original;
+    }
+  });
+
+  it('returns the mail error instead of hanging when sending fails', async () => {
+    User.findOne.mockResolvedValue(makeUser());
+    sendEmail.mockRejectedValue(
+      createHttpError(502, 'Failed to send email. Please try again later.'),
+    );
+
+    const res = await request(app)
+      .post('/auth/request-reset-email')
+      .send({ email });
+
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual({
+      message: 'Failed to send email. Please try again later.',
+    });
   });
 
   it('returns 400 for an invalid email', async () => {
