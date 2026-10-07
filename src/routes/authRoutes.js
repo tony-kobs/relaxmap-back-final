@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { celebrate } from 'celebrate';
+import { validate } from '../middleware/validate.js';
 import {
   registerUser,
   loginUser,
@@ -18,12 +18,12 @@ import {
 
 const router = Router();
 
-router.post('/register', celebrate(registerUserSchema), registerUser);
-router.post('/login', celebrate(loginUserSchema), loginUser);
+router.post('/register', validate(registerUserSchema), registerUser);
+router.post('/login', validate(loginUserSchema), loginUser);
 router.post('/logout', logoutUser);
 router.post('/refresh', refreshUserSession);
 router.get('/session', getSession);
-router.post('/request-reset-email', celebrate(requestResetEmailSchema), requestResetEmail);
-router.post('/reset-password', celebrate(resetPasswordSchema), resetPassword);
+router.post('/request-reset-email', validate(requestResetEmailSchema), requestResetEmail);
+router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
 
 export default router;

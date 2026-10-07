@@ -4,23 +4,33 @@ import mongoose from 'mongoose';
 import multer from 'multer';
 import { IMAGE_TYPE_ERROR } from './multer.js';
 
-const validationMessage = (err) => {
-  for (const joiError of err.details.values()) {
-    const detail = joiError.details[0];
-    if (detail?.message) {
-      return detail.message;
+const validationErrors = (err) => {
+  const errors = [];
+
+  for (const [segment, joiError] of err.details.entries()) {
+    for (const detail of joiError.details) {
+      errors.push({
+        segment,
+        field: detail.path.join('.'),
+        message: detail.message,
+      });
     }
   }
 
-  return 'Validation failed';
+  return errors;
 };
 
 export const errorHandler = (err, req, res, next) => {
   void next;
 
   if (isCelebrateError(err)) {
+    const errors = validationErrors(err);
+
     return res.status(400).json({
-      message: validationMessage(err),
+      message: errors.length
+        ? errors.map((item) => item.message).join('; ')
+        : 'Validation failed',
+      errors,
     });
   }
 
