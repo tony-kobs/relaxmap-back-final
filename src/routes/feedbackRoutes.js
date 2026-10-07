@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { celebrate } from 'celebrate';
+import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/authenticate.js';
 import {
   getFeedbacks,
@@ -14,12 +14,12 @@ import {
 
 const router = Router();
 
-router.get('/', celebrate(feedbackQuerySchema), getFeedbacks);
-router.post('/', authenticate, celebrate(createFeedbackSchema), createFeedback);
+router.get('/', validate(feedbackQuerySchema), getFeedbacks);
+router.post('/', authenticate, validate(createFeedbackSchema), createFeedback);
 router.delete(
   '/:feedbackId',
   authenticate,
-  celebrate(feedbackIdSchema),
+  validate(feedbackIdSchema),
   deleteFeedback,
 );
 
