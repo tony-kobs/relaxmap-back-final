@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { celebrate } from 'celebrate';
+import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { upload } from '../middleware/multer.js';
 import {
@@ -22,10 +22,10 @@ router.patch(
   '/me',
   authenticate,
   upload.single('avatar'),
-  celebrate(updateMeSchema),
+  validate(updateMeSchema),
   updateCurrentUser,
 );
-router.get('/:userId/locations', celebrate(userLocationsQuerySchema), getUserLocations);
-router.get('/:userId', celebrate(userIdSchema), getUserById);
+router.get('/:userId/locations', validate(userLocationsQuerySchema), getUserLocations);
+router.get('/:userId', validate(userIdSchema), getUserById);
 
 export default router;

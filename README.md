@@ -15,14 +15,48 @@
 
 ## Зміст
 
-1. [Стек](#стек)
-2. [Маршрути](#маршрути)
-3. [Форми відповідей](#форми-відповідей)
-4. [Моделі](#моделі)
-5. [Локальна база](#локальна-база)
-6. [Каталог src](#каталог-src)
-7. [Запуск](#запуск)
-8. [Env](#env)
+1. [Посилання](#посилання)
+2. [Команда](#команда)
+3. [Стек](#стек)
+4. [Маршрути](#маршрути)
+5. [Форми відповідей](#форми-відповідей)
+6. [Моделі](#моделі)
+7. [Локальна база](#локальна-база)
+8. [Каталог src](#каталог-src)
+9. [Запуск](#запуск)
+10. [Env](#env)
+
+## Посилання
+
+| Що | Де |
+| --- | --- |
+| API на проді (Render) | [relaxmap-back-final.onrender.com](https://relaxmap-back-final.onrender.com/health) |
+| Swagger на проді | [relaxmap-back-final.onrender.com/api-docs](https://relaxmap-back-final.onrender.com/api-docs/) |
+| OpenAPI JSON | [relaxmap-back-final.onrender.com/api-docs.json](https://relaxmap-back-final.onrender.com/api-docs.json) |
+| Сайт (Vercel) | [relaxmap-front-final.vercel.app](https://relaxmap-front-final.vercel.app) |
+| Фронтенд-репозиторій | [tony-kobs/relaxmap-front-final](https://github.com/tony-kobs/relaxmap-front-final) |
+| Макет | [Figma](https://www.figma.com/design/139uPoMOT1RJ51sirdNQPX/RelaxMap?node-id=6383-168&t=36seQL7y1m6j9bn5-1) |
+
+Сервіс на безкоштовному тарифі Render засинає без запитів, тому перше звернення після паузи може тривати до хвилини.
+
+## Команда
+
+Команда спільна для фронтенду і бекенду.
+
+| Учасник | GitHub | Роль |
+| --- | --- | --- |
+| Антон Кобись | [tony-kobs](https://github.com/tony-kobs) | Тімлід, бекенд, Header / Footer, вихід |
+| Валентин Бурий | [groteskzp](https://github.com/groteskzp) | Каталог: фільтри, сітка локацій, «Показати ще» |
+| Христина Білецька | [BiletskaKhristina](https://github.com/BiletskaKhristina) | Профіль: інформація про користувача, порожній стан |
+| Андрій Степанюк | [Andrii-Stepaniuk27](https://github.com/Andrii-Stepaniuk27) | Вхід: форма логіну |
+| Анна Крочак | [KiraSpace777](https://github.com/KiraSpace777) | Відгуки: слайдер на головній, відгуки на сторінці місця |
+| Аліна Овчинникова | [alinakvitochka](https://github.com/alinakvitochka) | Новий відгук: модалка і форма |
+| Сергій Човгун | [sergeychovgun](https://github.com/sergeychovgun) | Реєстрація, редагування локації |
+| Євгеній Крочак | [Zhenya-77](https://github.com/Zhenya-77) | Створення локації: форма додавання |
+| Віктор Матвійчук | [ViktorMatviichuk](https://github.com/ViktorMatviichuk) | Популярні локації: карусель і картка |
+| Олександр Павленко | [AlexandrPavlenko-ctrl](https://github.com/AlexandrPavlenko-ctrl) | Сторінка місця: інформація і галерея |
+| Сергій Минда | [sergijminda9](https://github.com/sergijminda9) | Перший екран: Hero і переваги |
+| Адам Лех | [AdamPershyi](https://github.com/AdamPershyi) | Сесія: модалки підтвердження і підказки входу |
 
 ## Стек
 
